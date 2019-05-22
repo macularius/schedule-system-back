@@ -4,10 +4,12 @@ import (
 	"github.com/revel/revel"
 )
 
-type App struct {
+// GUI controller struct
+type GUI struct {
 	*revel.Controller
 }
 
-func (c App) Index() revel.Result {
-
+// Index action name
+func (c *GUI) Index() revel.Result {
+	return c.Render()
 }
