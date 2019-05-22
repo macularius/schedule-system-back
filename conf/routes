@@ -1,0 +1,40 @@
+# Routes Config
+#
+# This file defines all application routes (Higher priority routes first)
+#
+
+module:testrunner
+# module:jobs
+
+GET     /                                       cGUI.Index
+
+GET     /employee/:id/schedule          cSchedule.GetSchedule
+POST    /employee/:id/schedule          cSchedule.EditSchedule
+
+GET     /employee/:id/template          cSchedule.GetTemplates
+POST    /employee/:id/template          cSchedule.EditTemplate
+
+GET     /employee/:id/days              cSchedule.GetDays
+POST    /employee/:id/days              cSchedule.EditDay
+
+GET     /metadata/menu                  cMetadata.GetMenuMeta
+GET     /metadata/title                 cMetadata.GetTitleMeta
+
+#POST    /authentication/login           cAuth.login
+#POST    /authentication/logout           cAuth.logout
+
+# Ignore favicon requests
+GET     /favicon.ico                            404
+
+# Map static resources from the /app/public folder to the /public path
+GET     /public/*filepath                       Static.Serve("public")
+
+# Catch all, this will route any request into the controller path
+#
+#                    **** WARNING ****
+# Enabling this exposes any controller and function to the web.
+# ** This is a serious security issue if used online **
+#
+# For rapid development uncomment the following to add new controller.action endpoints
+# without having to add them to the routes table.
+# *       /:controller/:action                    :controller.:action
