@@ -1,8 +1,10 @@
 package entities
 
+import "time"
+
 // Day type of schedule's day
 type Day struct {
-	Date       string
+	Date       time.Time
 	RangeStart string
 	RangeEnd   string
 }
