@@ -15,6 +15,6 @@ func getScheduleById(id int) {
 
 // GetSchedule get schedule action
 func (c Schedule) GetSchedule() revel.Result {
-	msg := c.Params.Values
-	return c.RenderJSON(msg)
+	schedule := c.Params.Values
+	return c.RenderJSON(schedule)
 }
