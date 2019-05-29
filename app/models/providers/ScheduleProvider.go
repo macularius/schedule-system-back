@@ -1,4 +1,4 @@
-package schedule
+package providers
 
 import (
 	"myapp/app/models/mappers"

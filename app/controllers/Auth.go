@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"myapp/app"
-	"myapp/app/models/mappers"
+	"myapp/app/models/providers"
 
 	"github.com/revel/revel"
 )
@@ -13,7 +13,7 @@ import (
 // Auth controller struct
 type Auth struct {
 	*revel.Controller
-	Mapper *mappers.AuthMapper
+	Provider *providers.AuthProvider
 }
 
 // Login action name
@@ -21,7 +21,7 @@ func (c *Auth) Login(login string, password string) revel.Result {
 	var connection *sql.DB
 	var exist bool
 
-	_, exist, err := c.Mapper.Authentication(login, password)
+	_, exist, err := c.Provider.Authentication(login, password)
 	if err != nil {
 		errStr := err.Error()
 		return c.Render(errStr)
