@@ -3,7 +3,6 @@ package app
 import (
 	"crypto/md5"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,7 +10,13 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	_ "github.com/lib/pq"
 )
+
+var cache Cache
+var config DBConfig
+var db *sql.DB
 
 // Cache структура кэша для хранения сессий пользователей
 type Cache struct {
@@ -21,6 +26,13 @@ type Cache struct {
 	sessions          map[string]entities.Session
 }
 
+func (c *Cache) init() {
+	c.cleanupInterval = 500 * time.Second
+	c.defaultExpiration = 600 * time.Second
+	c.sessions = make(map[string]entities.Session)
+	c.StartGC()
+}
+
 func createTokken(userID int, time string) string {
 	str := fmt.Sprintf("%ssalt%d", time, userID)
 	h := md5.New()
@@ -28,120 +40,156 @@ func createTokken(userID int, time string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-// New инициализация кэша
-// defaultExpiration — время жизни кеша по-умолчанию,
-// 		если установлено значение меньше или равно 0 — время жизни кеша бессрочно.
-// cleanupInterval — интервал между удалением просроченного кеша.
-//		При установленном значении меньше или равно 0 — очистка и удаление просроченного кеша не происходит.
-func New(defaultExpiration, cleanupInterval time.Duration) *Cache {
-
-	// инициализируем карту(map) в паре ключ(string)/значение(Session)
-	sessions := make(map[string]entities.Session)
-
-	cache := Cache{
-		sessions:          sessions,
-		defaultExpiration: defaultExpiration,
-		cleanupInterval:   cleanupInterval,
-	}
-
-	// Если интервал очистки больше 0, запускаем GC (удаление устаревших элементов)
-	if cleanupInterval > 0 {
-		cache.StartGC()
-	}
-
-	return &cache
+// IsExistByTokken возвращает true, если заданный tokken существует в кэше
+func IsExistByTokken(tokken string) bool {
+	var exist bool
+	_, exist = cache.sessions[tokken]
+	return exist
 }
 
-// Add добавляет сессию в кэш
-func (c *Cache) Add(login string, userID int, duration time.Duration) {
+// IsExistByLogin возвращает true, если сессия для данного login'а существует в кэше
+func IsExistByLogin(login string) (string, bool) {
+	for tokken, session := range cache.sessions {
+		if session.Login == login {
+			return tokken, true
+		}
+	}
+	return "", false
+}
 
-	var expiration int64
-	var created = time.Now()
-
-	// Если продолжительность жизни равна 0 - используется значение по-умолчанию
-	if duration == 0 {
-		duration = c.defaultExpiration
+// Add добавление сессии в кэш
+func Add(login string) (string, map[string]entities.Session) {
+	// Срабатывает при первом запуске кэша
+	if cache.cleanupInterval == 0 || cache.defaultExpiration == 0 || cache.sessions == nil {
+		cache.init()
 	}
 
-	// Устанавливаем время истечения кеша
-	if duration > 0 {
-		expiration = time.Now().Add(duration).UnixNano()
+	// Если токкен существует вернуть его сессию с обновленным временем жизни
+	if tokken, exist := IsExistByLogin(login); exist {
+		ExtendSession(login)
+		return tokken, cache.sessions
 	}
-	c.Lock()
-	defer c.Unlock()
 
-	connection, err := sql.Open("postgres", GetNewConnectionString(login))
+	db, err := sql.Open("postgres", config.GetConnectionString())
 	if err != nil {
-		panic(err)
+		// log.Fatal("Error creating connection: ", err.Error())
+		return "Error creating connection: ", nil
 	}
-	defer connection.Close()
+	defer db.Close()
+	rows, err := db.Query("SELECT uid FROM users WHERE login = '" + login + "'")
+	if err != nil {
+		// log.Fatal("Error creating role: ", err.Error())
+		return "Error creating role: ", nil
+	}
+	defer rows.Close()
 
-	key := createTokken(userID, strconv.FormatInt(created.Unix(), 10))
+	var uid int
+	err = rows.Scan(&uid)
+	var created = time.Now()
+	var duration = cache.defaultExpiration
+	var expiration = time.Now().Add(duration).UnixNano()
 
-	if _, exist := c.sessions[key]; exist {
-		c.sessions[key] = entities.Session{
-			UserID:     userID,
+	cache.Lock()
+	defer cache.Unlock()
+
+	tokken := createTokken(uid, strconv.FormatInt(created.Unix(), 10))
+	constr, err := GetNewConnectionString(login)
+	if err != nil {
+		return err.Error(), nil
+	}
+
+	connection, err := sql.Open("postgres", constr)
+	if err != nil {
+		return "Error creating connection", nil
+	}
+
+	if _, exist := cache.sessions[tokken]; !exist {
+		cache.sessions[tokken] = entities.Session{
+			UserID:     uid,
 			Connection: connection,
 			Login:      login,
 			Created:    created,
 			Expiration: expiration,
 		}
 	} else {
-		log.Fatal("This tokken is exist")
+		// log.Fatal("This tokken is exist")
+		fmt.Println(cache.sessions)
+		return "This tokken(" + tokken + ") is exist", nil
 	}
+
+	// session := cache.sessions[tokken]
+
+	return tokken, cache.sessions
 }
 
-// Get получение сессии из кеша
-func (c *Cache) Get(key string) (interface{}, bool) {
-
-	c.RLock()
-
-	defer c.RUnlock()
-
-	session, found := c.sessions[key]
-
-	// ключ не найден
-	if !found {
-		return nil, false
+// GetConnectionByTokken получение connect'а по токену, возвращает nil, если токен не существует
+func GetConnectionByTokken(tokken string) *sql.DB {
+	if session, exist := cache.sessions[tokken]; exist {
+		return session.Connection
 	}
-
-	// Проверка на установку времени истечения, в противном случае он бессрочный
-	if session.Expiration > 0 {
-
-		// Если в момент запроса кеш устарел возвращаем nil
-		if time.Now().UnixNano() > session.Expiration {
-			return nil, false
-		}
-
-	}
-
-	return session.Connection, true
-}
-
-// Delete удаление из кэша сессиии с токеном
-func (c *Cache) Delete(key string) error {
-
-	c.Lock()
-
-	defer c.Unlock()
-
-	if _, found := c.sessions[key]; !found {
-		return errors.New("Key not found")
-	}
-
-	delete(c.sessions, key)
-
 	return nil
+}
+
+// DeleteByTokken удаление сессии по токену
+func DeleteByTokken(tokken string) {
+	cache.Lock()
+	defer cache.Unlock()
+
+	if _, exist := cache.sessions[tokken]; !exist {
+		log.Fatal()
+	}
+
+	delete(cache.sessions, tokken)
+}
+
+// DeleteByLogin удаление сессии по токену
+func DeleteByLogin(login string) {
+
+	var tokken string
+	for key, session := range cache.sessions {
+		if session.Login == login {
+			tokken = key
+			break
+		}
+	}
+
+	cache.Lock()
+	defer cache.Unlock()
+
+	delete(cache.sessions, tokken)
+}
+
+// ExtendSession обновление сессии пользователя
+func ExtendSession(login string) {
+	var tokken string
+	var session entities.Session
+	for tokken, session = range cache.sessions {
+		if session.Login == login {
+			break
+		}
+	}
+	newSession := entities.Session{
+		UserID:     session.UserID,
+		Connection: session.Connection,
+		Login:      session.Login,
+		Created:    session.Created,
+		Expiration: time.Now().Add(cache.defaultExpiration).UnixNano(),
+	}
+
+	cache.Lock()
+	defer cache.Unlock()
+
+	delete(cache.sessions, tokken)
+	cache.sessions[tokken] = newSession
 }
 
 // StartGC запуск сборки мусора в горутине
 func (c *Cache) StartGC() {
-	go c.GC()
+	go cache.GC()
 }
 
 // GC сборка мусора
 func (c *Cache) GC() {
-
 	for {
 		// ожидаем время установленное в cleanupInterval
 		<-time.After(c.cleanupInterval)
@@ -153,18 +201,13 @@ func (c *Cache) GC() {
 		// Ищем элементы с истекшим временем жизни и удаляем из хранилища
 		if keys := c.expiredKeys(); len(keys) != 0 {
 			c.clearItems(keys)
-
 		}
-
 	}
-
 }
 
 // expiredKeys возвращает список "просроченных" ключей
 func (c *Cache) expiredKeys() (keys []string) {
-
 	c.RLock()
-
 	defer c.RUnlock()
 
 	for k, i := range c.sessions {
@@ -178,9 +221,7 @@ func (c *Cache) expiredKeys() (keys []string) {
 
 // clearItems удаляет ключи из переданного списка, в нашем случае "просроченные"
 func (c *Cache) clearItems(keys []string) {
-
 	c.Lock()
-
 	defer c.Unlock()
 
 	for _, k := range keys {

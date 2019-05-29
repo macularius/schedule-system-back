@@ -9,9 +9,9 @@ type Schedule struct {
 	*revel.Controller
 }
 
-func getScheduleById(id int) {
+// func getScheduleById(id int) {
 
-}
+// }
 
 // GetSchedule get schedule action
 func (c Schedule) GetSchedule() revel.Result {

@@ -20,8 +20,11 @@ GET      /employee/:id/schedule          schedule.GetSchedule
 #GET     /metadata/menu                  metadata.GetMenuMeta
 #GET     /metadata/title                 metadata.GetTitleMeta
 
+
+GET      /authentication/:login/in       auth.login
+GET      /authentication/:login/out      auth.logout
 #POST    /authentication/login           auth.login
-#POST    /authentication/logout           auth.logout
+#POST    /authentication/logout          auth.logout
 
 # Ignore favicon requests
 GET     /favicon.ico                            404

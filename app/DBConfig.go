@@ -3,7 +3,6 @@ package app
 import (
 	"database/sql"
 	"fmt"
-	"log"
 
 	_ "github.com/lib/pq"
 )
@@ -27,18 +26,37 @@ func (c *DBConfig) GetConnectionString() string {
 }
 
 // GetNewConnectionString получение новой строки подключения
-func GetNewConnectionString(username string) string {
+func GetNewConnectionString(username string) (string, error) {
+	var err error
 	db, err := sql.Open("postgres", fmt.Sprintf("user=%s password=%s database=%s sslmode=disable", user, password, database))
 	if err != nil {
-		log.Fatal("Error creating connection: ", err.Error())
+		// log.Fatal("Error creating connection: ", err.Error())
+		return "Error creating connection: ", err
 	}
 	defer db.Close()
 
-	rows, err := db.Query("CREATE ROLE " + username)
+	// Проверка существования роли
+	roles, err := db.Query(fmt.Sprintf("SELECT rolname FROM pg_roles WHERE rolname = '%s';", username))
 	if err != nil {
-		log.Fatal("Error creating role: ", err.Error())
+		// log.Fatal("Error creating role: ", err.Error())
+		return "Error creating role: ", err
 	}
-	defer rows.Close()
+	defer roles.Close()
+	var role string
+	if roles.Next() {
+		err = roles.Scan(&role)
+	}
+	if err != nil {
+		return "Error scanning role: ", err
+	}
 
-	return fmt.Sprintf("user=%s password=%s database=%s sslmode=disable", username, password, database)
+	if role == "" {
+		_, err = db.Query(fmt.Sprintf("CREATE ROLE \"%s\" LOGIN;", username))
+		if err != nil {
+			// log.Fatal("Error creating role: ", err.Error())
+			return "Error creating role: ", err
+		}
+	}
+
+	return fmt.Sprintf("user=%s password=%s database=%s sslmode=disable", username, password, database), nil
 }
