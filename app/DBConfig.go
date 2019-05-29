@@ -21,17 +21,19 @@ const (
 )
 
 // GetConnectionString возвращает string сконфигурированную строку подключения к Postgre
-func (c *DBConfig) GetConnectionString() string {
+func GetConnectionString() string {
 	return fmt.Sprintf("user=%s password=%s database=%s sslmode=disable", user, password, database)
 }
 
 // GetNewConnectionString получение новой строки подключения
 func GetNewConnectionString(username string) (string, error) {
 	var err error
+	var rolename string
+
 	db, err := sql.Open("postgres", fmt.Sprintf("user=%s password=%s database=%s sslmode=disable", user, password, database))
 	if err != nil {
 		// log.Fatal("Error creating connection: ", err.Error())
-		return "Error creating connection: ", err
+		return "", err
 	}
 	defer db.Close()
 
@@ -39,22 +41,21 @@ func GetNewConnectionString(username string) (string, error) {
 	roles, err := db.Query(fmt.Sprintf("SELECT rolname FROM pg_roles WHERE rolname = '%s';", username))
 	if err != nil {
 		// log.Fatal("Error creating role: ", err.Error())
-		return "Error creating role: ", err
+		return "", err
 	}
 	defer roles.Close()
-	var role string
 	if roles.Next() {
-		err = roles.Scan(&role)
+		err = roles.Scan(&rolename)
 	}
 	if err != nil {
-		return "Error scanning role: ", err
+		return "", err
 	}
 
-	if role == "" {
-		_, err = db.Query(fmt.Sprintf("CREATE ROLE \"%s\" LOGIN;", username))
+	if rolename == "" {
+		_, err = db.Query(fmt.Sprintf("create role \"%s\" login;", username))
 		if err != nil {
 			// log.Fatal("Error creating role: ", err.Error())
-			return "Error creating role: ", err
+			return "", err
 		}
 	}
 

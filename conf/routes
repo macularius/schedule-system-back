@@ -6,25 +6,25 @@
 module:testrunner
 # module:jobs
 
-GET      /                               GUI.Index
+GET      /                                      GUI.Index
 
-GET      /employee/:id/schedule          schedule.GetSchedule
-#POST    /employee/:id/schedule          schedule.EditSchedule
+GET      /employee/:id/schedule                 schedule.GetSchedule
+#POST    /employee/:id/schedule                 schedule.EditSchedule
 
-#GET     /employee/:id/template          schedule.GetTemplates
-#POST    /employee/:id/template          schedule.EditTemplate
+#GET     /employee/:id/template                 schedule.GetTemplates
+#POST    /employee/:id/template                 schedule.EditTemplate
 
-#GET     /employee/:id/days              schedule.GetDays
-#POST    /employee/:id/days              schedule.EditDay
+#GET     /employee/:id/days                     schedule.GetDays
+#POST    /employee/:id/days                     schedule.EditDay
 
-#GET     /metadata/menu                  metadata.GetMenuMeta
-#GET     /metadata/title                 metadata.GetTitleMeta
+#GET     /metadata/menu                         metadata.GetMenuMeta
+#GET     /metadata/title                        metadata.GetTitleMeta
 
 
-GET      /authentication/:login/in       auth.login
-GET      /authentication/:login/out      auth.logout
-#POST    /authentication/login           auth.login
-#POST    /authentication/logout          auth.logout
+GET      /authentication/:login/:password       auth.login
+GET      /authentication/:login/out             auth.logout
+#POST    /authentication/login                  auth.login
+#POST    /authentication/logout                 auth.logout
 
 # Ignore favicon requests
 GET     /favicon.ico                            404

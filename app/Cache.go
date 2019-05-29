@@ -33,58 +33,64 @@ func (c *Cache) init() {
 	c.StartGC()
 }
 
-func createTokken(userID int, time string) string {
+func createToken(userID int, time string) string {
 	str := fmt.Sprintf("%ssalt%d", time, userID)
 	h := md5.New()
 	io.WriteString(h, str)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-// IsExistByTokken возвращает true, если заданный tokken существует в кэше
-func IsExistByTokken(tokken string) bool {
+// IsExistByToken возвращает true, если заданный token существует в кэше
+func IsExistByToken(token string) bool {
 	var exist bool
-	_, exist = cache.sessions[tokken]
+	_, exist = cache.sessions[token]
 	return exist
 }
 
 // IsExistByLogin возвращает true, если сессия для данного login'а существует в кэше
 func IsExistByLogin(login string) (string, bool) {
-	for tokken, session := range cache.sessions {
+	for token, session := range cache.sessions {
 		if session.Login == login {
-			return tokken, true
+			return token, true
 		}
 	}
 	return "", false
 }
 
 // Add добавление сессии в кэш
-func Add(login string) (string, map[string]entities.Session) {
+func Add(login string) (map[string]entities.Session, string) {
 	// Срабатывает при первом запуске кэша
 	if cache.cleanupInterval == 0 || cache.defaultExpiration == 0 || cache.sessions == nil {
 		cache.init()
 	}
 
 	// Если токкен существует вернуть его сессию с обновленным временем жизни
-	if tokken, exist := IsExistByLogin(login); exist {
+	if _, exist := IsExistByLogin(login); exist {
 		ExtendSession(login)
-		return tokken, cache.sessions
+		return cache.sessions, ""
 	}
 
-	db, err := sql.Open("postgres", config.GetConnectionString())
+	db, err := sql.Open("postgres", GetConnectionString())
 	if err != nil {
 		// log.Fatal("Error creating connection: ", err.Error())
-		return "Error creating connection: ", nil
+		return nil, fmt.Sprintf("Error creating connection: %s", err.Error())
 	}
 	defer db.Close()
-	rows, err := db.Query("SELECT uid FROM users WHERE login = '" + login + "'")
+	rows, err := db.Query(fmt.Sprintf("SELECT uid FROM users WHERE login = '%s'", login))
 	if err != nil {
 		// log.Fatal("Error creating role: ", err.Error())
-		return "Error creating role: ", nil
+		return nil, fmt.Sprintf("Error selected users with login: %s", err.Error())
 	}
 	defer rows.Close()
 
 	var uid int
-	err = rows.Scan(&uid)
+	if rows.Next() {
+		err = rows.Scan(&uid)
+	}
+	if err != nil {
+		// log.Fatal("Error creating role: ", err.Error())
+		return nil, fmt.Sprintf("Error scanning uid: %s", err.Error())
+	}
 	var created = time.Now()
 	var duration = cache.defaultExpiration
 	var expiration = time.Now().Add(duration).UnixNano()
@@ -92,19 +98,19 @@ func Add(login string) (string, map[string]entities.Session) {
 	cache.Lock()
 	defer cache.Unlock()
 
-	tokken := createTokken(uid, strconv.FormatInt(created.Unix(), 10))
+	token := createToken(uid, strconv.FormatInt(created.Unix(), 10))
 	constr, err := GetNewConnectionString(login)
 	if err != nil {
-		return err.Error(), nil
+		return nil, fmt.Sprintf("1 %s", err.Error())
 	}
 
 	connection, err := sql.Open("postgres", constr)
 	if err != nil {
-		return "Error creating connection", nil
+		return nil, fmt.Sprintf("2 %s", err.Error())
 	}
 
-	if _, exist := cache.sessions[tokken]; !exist {
-		cache.sessions[tokken] = entities.Session{
+	if _, exist := cache.sessions[token]; !exist {
+		cache.sessions[token] = entities.Session{
 			UserID:     uid,
 			Connection: connection,
 			Login:      login,
@@ -112,43 +118,43 @@ func Add(login string) (string, map[string]entities.Session) {
 			Expiration: expiration,
 		}
 	} else {
-		// log.Fatal("This tokken is exist")
+		// log.Fatal("This token is exist")
 		fmt.Println(cache.sessions)
-		return "This tokken(" + tokken + ") is exist", nil
+		return nil, fmt.Sprintf("3 %s", err.Error())
 	}
 
-	// session := cache.sessions[tokken]
+	// session := cache.sessions[token]
 
-	return tokken, cache.sessions
+	return cache.sessions, ""
 }
 
-// GetConnectionByTokken получение connect'а по токену, возвращает nil, если токен не существует
-func GetConnectionByTokken(tokken string) *sql.DB {
-	if session, exist := cache.sessions[tokken]; exist {
+// GetConnectionByToken получение connect'а по токену, возвращает nil, если токен не существует
+func GetConnectionByToken(token string) *sql.DB {
+	if session, exist := cache.sessions[token]; exist {
 		return session.Connection
 	}
 	return nil
 }
 
-// DeleteByTokken удаление сессии по токену
-func DeleteByTokken(tokken string) {
+// DeleteByToken удаление сессии по токену
+func DeleteByToken(token string) {
 	cache.Lock()
 	defer cache.Unlock()
 
-	if _, exist := cache.sessions[tokken]; !exist {
+	if _, exist := cache.sessions[token]; !exist {
 		log.Fatal()
 	}
 
-	delete(cache.sessions, tokken)
+	delete(cache.sessions, token)
 }
 
 // DeleteByLogin удаление сессии по токену
 func DeleteByLogin(login string) {
 
-	var tokken string
+	var token string
 	for key, session := range cache.sessions {
 		if session.Login == login {
-			tokken = key
+			token = key
 			break
 		}
 	}
@@ -156,14 +162,14 @@ func DeleteByLogin(login string) {
 	cache.Lock()
 	defer cache.Unlock()
 
-	delete(cache.sessions, tokken)
+	delete(cache.sessions, token)
 }
 
 // ExtendSession обновление сессии пользователя
 func ExtendSession(login string) {
-	var tokken string
+	var token string
 	var session entities.Session
-	for tokken, session = range cache.sessions {
+	for token, session = range cache.sessions {
 		if session.Login == login {
 			break
 		}
@@ -179,8 +185,8 @@ func ExtendSession(login string) {
 	cache.Lock()
 	defer cache.Unlock()
 
-	delete(cache.sessions, tokken)
-	cache.sessions[tokken] = newSession
+	delete(cache.sessions, token)
+	cache.sessions[token] = newSession
 }
 
 // StartGC запуск сборки мусора в горутине

@@ -9,13 +9,12 @@ import (
 
 // ScheduleMapper type of ScheduleProvider's mapper
 type ScheduleMapper struct {
-	*app.DBConfig
 	Employee entities.Employee
 }
 
 // Init initialize employee days and temlates with id
 func (m *ScheduleMapper) Init(id string) {
-	connstr := m.GetConnectionString()
+	connstr := app.GetConnectionString()
 
 	_, err := sql.Open("postgres", connstr)
 	if err != nil {
