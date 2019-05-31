@@ -40,11 +40,12 @@ func (m *ScheduleMapper) GetSchedule() map[string]string {
 func (m *ScheduleMapper) GetScheduleByRange(dateStart time.Time, dateEnd time.Time) map[string]string {
 	schedule := make(map[string]string)
 	for day := dateStart; day.Unix() <= dateEnd.Unix(); day = time.Unix(day.Unix()+86400, 64) { // 24 часа = 86400 секунд
-		if curDay, exist := m.Days[day.Format("2006-01-02T15:04:05Z07:00")]; exist {
-			schedule[day.Format("2006-01-02T15:04:05Z07:00")] = curDay
+		fmt.Println("\n*" + day.Format("2006-01-02") + "*\n")
+		if curDay, exist := m.Days[day.Format("2006-01-02")]; exist {
+			schedule[day.Format("2006-01-02")] = curDay
 		} else {
 			curWeekday := day.Weekday().String()
-			schedule[day.Format("2006-01-02T15:04:05Z07:00")] = m.Template[curWeekday]
+			schedule[day.Format("2006-01-02")] = m.Template[curWeekday]
 		}
 	}
 
@@ -61,8 +62,8 @@ func (m *ScheduleMapper) daysInit(rows *sql.Rows) error {
 		if err != nil {
 			return err
 		}
-		m.Days[date.Format("2006-01-02T15:04:05Z07:00")] = timerange
-		fmt.Println(m.Days[date.Format("2006-01-02T15:04:05Z07:00")])
+		m.Days[date.Format("2006-01-02")] = timerange
+		fmt.Println(date.Format("2006-01-02") + " - " + m.Days[date.Format("2006-01-02")])
 	}
 	fmt.Println("\n*** Days end")
 
