@@ -29,7 +29,7 @@ func (m *ScheduleMapper) Init(dayRows *sql.Rows, templateRow *sql.Row) error {
 }
 
 // GetSchedule возвращает расписание на основе дней и шаблонов
-func (m *ScheduleMapper) GetSchedule() map[string]string {
+func (m *ScheduleMapper) GetSchedule() []entities.Day {
 	dateStart := time.Now()
 	dateEnd := time.Unix(time.Now().Unix()+2592000, 64) // 30-ый день от текущего
 
@@ -37,15 +37,21 @@ func (m *ScheduleMapper) GetSchedule() map[string]string {
 }
 
 // GetScheduleByRange возвращает расписание на основе дней и шаблонов
-func (m *ScheduleMapper) GetScheduleByRange(dateStart time.Time, dateEnd time.Time) map[string]string {
-	schedule := make(map[string]string)
+func (m *ScheduleMapper) GetScheduleByRange(dateStart time.Time, dateEnd time.Time) []entities.Day {
+	schedule := make([]entities.Day, 0)
 	for day := dateStart; day.Unix() <= dateEnd.Unix(); day = time.Unix(day.Unix()+86400, 64) { // 24 часа = 86400 секунд
-		fmt.Println("\n*" + day.Format("2006-01-02") + "*\n")
-		if curDay, exist := m.Days[day.Format("2006-01-02")]; exist {
-			schedule[day.Format("2006-01-02")] = curDay
+		var newday entities.Day
+		if curDay, exist := m.Days[day.Format("01.02.2006")]; exist {
+			newday.Date = day.Format("01.02.2006")
+			newday.Timerange = curDay
+			schedule = append(schedule, newday)
 		} else {
 			curWeekday := day.Weekday().String()
-			schedule[day.Format("2006-01-02")] = m.Template[curWeekday]
+			newday.Date = day.Format("01.02.2006")
+			newday.Timerange = m.Template[curWeekday]
+			fmt.Print("\n***\ndatestart: " + newday.Date + " " + newday.Timerange + "\n***\n")
+
+			schedule = append(schedule, newday)
 		}
 	}
 
@@ -54,7 +60,7 @@ func (m *ScheduleMapper) GetScheduleByRange(dateStart time.Time, dateEnd time.Ti
 
 func (m *ScheduleMapper) daysInit(rows *sql.Rows) error {
 	m.Days = make(map[string]string)
-	fmt.Println("\n*** Days start")
+	// fmt.Println("\n*** Days start")
 	for rows.Next() {
 		var date time.Time
 		var timerange string
@@ -62,10 +68,10 @@ func (m *ScheduleMapper) daysInit(rows *sql.Rows) error {
 		if err != nil {
 			return err
 		}
-		m.Days[date.Format("2006-01-02")] = timerange
-		fmt.Println(date.Format("2006-01-02") + " - " + m.Days[date.Format("2006-01-02")])
+		m.Days[date.Format("01.02.2006")] = timerange
+		// fmt.Println(date.Format("01.02.2006") + " - " + m.Days[date.Format("01.02.2006")])
 	}
-	fmt.Println("\n*** Days end")
+	// fmt.Println("\n*** Days end")
 
 	return nil
 }
@@ -73,18 +79,18 @@ func (m *ScheduleMapper) daysInit(rows *sql.Rows) error {
 func (m *ScheduleMapper) templatesInit(row *sql.Row) error {
 	m.Template = make(map[string]string)
 	weekdays := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
-	fmt.Println("\n*** Templates start")
+	// fmt.Println("\n*** Templates start")
 	var ranges [7]string
 	err := row.Scan(&ranges[0], &ranges[1], &ranges[2], &ranges[3], &ranges[4], &ranges[5], &ranges[6])
 	if err != nil {
-		fmt.Println("ERROR: \n" + err.Error() + "\n")
+		// fmt.Println("ERROR: \n" + err.Error() + "\n")
 		return err
 	}
 	for i, day := range weekdays {
 		m.Template[day] = ranges[i]
-		fmt.Println(m.Template[day])
+		// fmt.Println(m.Template[day])
 	}
-	fmt.Println("\n*** Templates end")
+	// fmt.Println("\n*** Templates end")
 
 	return nil
 }

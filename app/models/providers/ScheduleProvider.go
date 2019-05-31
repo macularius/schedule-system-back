@@ -3,6 +3,7 @@ package providers
 import (
 	"database/sql"
 	"fmt"
+	"myapp/app/models/entities"
 	"myapp/app/models/mappers"
 	"time"
 )
@@ -35,12 +36,12 @@ func (p *ScheduleProvider) Init(eid string, db *sql.DB) error {
 }
 
 // GetSchedule return days of schedule initializing employee
-func (p *ScheduleProvider) GetSchedule() map[string]string {
+func (p *ScheduleProvider) GetSchedule() []entities.Day {
 	return p.mapper.GetSchedule()
 }
 
 // GetScheduleByRange return days of schedule initializing employee
-func (p *ScheduleProvider) GetScheduleByRange(dateNumberStart time.Time, dateNumberEnd time.Time) map[string]string {
+func (p *ScheduleProvider) GetScheduleByRange(dateNumberStart time.Time, dateNumberEnd time.Time) []entities.Day {
 	return p.mapper.GetScheduleByRange(dateNumberStart, dateNumberEnd)
 }
 
@@ -48,5 +49,8 @@ func selectTemplatesQueryString(eid string) string {
 	return fmt.Sprintf("SELECT mon, tue, wed, thu, fri, sat, sun FROM templates WHERE eid='%s';", eid)
 }
 func selectDaysQueryString(eid string) string {
-	return fmt.Sprintf("SELECT date, range FROM schedules WHERE eid='%s'", eid)
+	return fmt.Sprintf("SELECT date, range FROM schedules WHERE eid='%s'", eid) // #TODO отрезать дни, которые прошли
+}
+func selectDaysQueryStringByRange(eid string, start time.Time, end time.Time) string {
+	return fmt.Sprintf("SELECT date, range FROM schedules WHERE eid='%s' AND date >= '%s' AND date <= '%s'", eid, start, end)
 }
