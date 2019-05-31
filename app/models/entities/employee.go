@@ -9,6 +9,4 @@ type Employee struct {
 	Position    string
 	Phonenumber string
 	Email       string
-	Days        []Day
-	Templates   []Template
 }

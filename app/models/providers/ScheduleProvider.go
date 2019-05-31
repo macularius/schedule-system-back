@@ -1,28 +1,52 @@
 package providers
 
 import (
+	"database/sql"
+	"fmt"
 	"myapp/app/models/mappers"
 	"time"
 )
 
 const (
-	ReadableDateFormat = "Mon Jan 02 2019 00:00:00 GMT+0400 (GMT+04:00)"
+	readableDateFormat = "Mon Jan 02 2019 00:00:00 GMT+0400 (GMT+04:00)"
 )
 
+// ScheduleProvider structere of auth provider
 type ScheduleProvider struct {
-	ID     string
-	Mapper mappers.ScheduleMapper
+	EID    string
+	DB     *sql.DB
+	mapper mappers.ScheduleMapper
 }
 
-// Init initialize mapper by employee's id
-func (p *ScheduleProvider) Init(ID string) {
-	p.Init(ID)
+// Init initialize mapper by user's id
+func (p *ScheduleProvider) Init(eid string, db *sql.DB) error {
+	fmt.Println("EID = " + eid)
+	p.EID = eid
+
+	templatesRow := db.QueryRow(selectTemplatesQueryString(eid))
+	daysRows, err := db.Query(selectDaysQueryString(eid))
+	if err != nil {
+		return err
+	}
+	defer daysRows.Close()
+	p.mapper.Init(daysRows, templatesRow)
+
+	return nil
 }
 
 // GetSchedule return days of schedule initializing employee
-func (p *ScheduleProvider) GetSchedule(dateNumberStart, dateNumberEnd time.Time) {
-	// days := p.Mapper.Employee.Days
-	// templates := p.Mapper.Employee.Templates[0]
+func (p *ScheduleProvider) GetSchedule() map[string]string {
+	return p.mapper.GetSchedule()
+}
 
-	// var result []entities.Day
+// GetScheduleByRange return days of schedule initializing employee
+func (p *ScheduleProvider) GetScheduleByRange(dateNumberStart time.Time, dateNumberEnd time.Time) map[string]string {
+	return p.mapper.GetScheduleByRange(dateNumberStart, dateNumberEnd)
+}
+
+func selectTemplatesQueryString(eid string) string {
+	return fmt.Sprintf("SELECT mon, tue, wed, thu, fri, sat, sun FROM templates WHERE eid='%s';", eid)
+}
+func selectDaysQueryString(eid string) string {
+	return fmt.Sprintf("SELECT date, range FROM schedules WHERE eid='%s'", eid)
 }
