@@ -8,21 +8,21 @@ import (
 	"time"
 )
 
+// Days30Seconds 30 дней = 2592000 секунд
 const (
 	readableDateFormat = "Mon Jan 02 2019 00:00:00 GMT+0400 (GMT+04:00)"
+	Days30Seconds      = 2592000
 )
 
 // ScheduleProvider structere of auth provider
 type ScheduleProvider struct {
-	EID    string
 	DB     *sql.DB
-	mapper mappers.ScheduleMapper
+	mapper *mappers.ScheduleMapper
 }
 
 // Init initialize mapper by user's id
 func (p *ScheduleProvider) Init(eid string, db *sql.DB) error {
-	fmt.Println("EID = " + eid)
-	p.EID = eid
+	p.mapper = new(mappers.ScheduleMapper)
 
 	templatesRow := db.QueryRow(selectTemplatesQueryString(eid))
 	daysRows, err := db.Query(selectDaysQueryString(eid))
@@ -36,13 +36,17 @@ func (p *ScheduleProvider) Init(eid string, db *sql.DB) error {
 }
 
 // GetSchedule return days of schedule initializing employee
-func (p *ScheduleProvider) GetSchedule() []entities.Day {
-	return p.mapper.GetSchedule()
-}
+func (p *ScheduleProvider) GetSchedule(dateNumberStart time.Time, dateNumberEnd time.Time) []entities.Day {
+	if dateNumberStart.IsZero() {
+		dateNumberStart = time.Now()
+		dateNumberEnd = time.Unix(time.Now().Unix()+Days30Seconds, 64) // 30-ый день от текущего
+	} else {
+		if dateNumberEnd.IsZero() {
+			dateNumberEnd = dateNumberStart
+		}
+	}
 
-// GetScheduleByRange return days of schedule initializing employee
-func (p *ScheduleProvider) GetScheduleByRange(dateNumberStart time.Time, dateNumberEnd time.Time) []entities.Day {
-	return p.mapper.GetScheduleByRange(dateNumberStart, dateNumberEnd)
+	return p.mapper.GetSchedule(dateNumberStart, dateNumberEnd)
 }
 
 func selectTemplatesQueryString(eid string) string {

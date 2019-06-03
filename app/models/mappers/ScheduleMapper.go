@@ -2,7 +2,6 @@ package mappers
 
 import (
 	"database/sql"
-	"fmt"
 	"myapp/app/models/entities"
 	"time"
 )
@@ -13,6 +12,11 @@ type ScheduleMapper struct {
 	Days     map[string]string // карта дней, 	  где key-дата,        value-промежуток времени, вида XXXX-XXXX
 	Template map[string]string // карта шаблонов, где key-день недели, value-промежуток времени, вида XXXX-XXXX
 }
+
+// DaySeconds 24 часа = 86400 секунд
+const (
+	DaySeconds = 86400
+)
 
 // Init initialize employee days and temlates with id
 func (m *ScheduleMapper) Init(dayRows *sql.Rows, templateRow *sql.Row) error {
@@ -29,17 +33,10 @@ func (m *ScheduleMapper) Init(dayRows *sql.Rows, templateRow *sql.Row) error {
 }
 
 // GetSchedule возвращает расписание на основе дней и шаблонов
-func (m *ScheduleMapper) GetSchedule() []entities.Day {
-	dateStart := time.Now()
-	dateEnd := time.Unix(time.Now().Unix()+2592000, 64) // 30-ый день от текущего
-
-	return m.GetScheduleByRange(dateStart, dateEnd)
-}
-
-// GetScheduleByRange возвращает расписание на основе дней и шаблонов
-func (m *ScheduleMapper) GetScheduleByRange(dateStart time.Time, dateEnd time.Time) []entities.Day {
+func (m *ScheduleMapper) GetSchedule(dateStart time.Time, dateEnd time.Time) []entities.Day {
 	schedule := make([]entities.Day, 0)
-	for day := dateStart; day.Unix() <= dateEnd.Unix(); day = time.Unix(day.Unix()+86400, 64) { // 24 часа = 86400 секунд
+
+	for day := dateStart; day.Unix() <= dateEnd.Unix(); day = time.Unix(day.Unix()+DaySeconds, 64) {
 		var newday entities.Day
 		if curDay, exist := m.Days[day.Format("01.02.2006")]; exist {
 			newday.Date = day.Format("01.02.2006")
@@ -49,7 +46,7 @@ func (m *ScheduleMapper) GetScheduleByRange(dateStart time.Time, dateEnd time.Ti
 			curWeekday := day.Weekday().String()
 			newday.Date = day.Format("01.02.2006")
 			newday.Timerange = m.Template[curWeekday]
-			fmt.Print("\n***\ndatestart: " + newday.Date + " " + newday.Timerange + "\n***\n")
+			// fmt.Print("\n***\ndatestart: " + newday.Date + " " + newday.Timerange + "\n***\n")
 
 			schedule = append(schedule, newday)
 		}
@@ -58,6 +55,7 @@ func (m *ScheduleMapper) GetScheduleByRange(dateStart time.Time, dateEnd time.Ti
 	return schedule
 }
 
+// #TODO вынос в структуру
 func (m *ScheduleMapper) daysInit(rows *sql.Rows) error {
 	m.Days = make(map[string]string)
 	// fmt.Println("\n*** Days start")
@@ -76,6 +74,7 @@ func (m *ScheduleMapper) daysInit(rows *sql.Rows) error {
 	return nil
 }
 
+// #TODO вынос в структуру
 func (m *ScheduleMapper) templatesInit(row *sql.Row) error {
 	m.Template = make(map[string]string)
 	weekdays := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
