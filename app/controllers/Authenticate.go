@@ -1,15 +1,35 @@
 package controllers
 
 import (
-	"database/sql"
-	"encoding/json"
 	"fmt"
-	"myapp/app"
-	"myapp/app/models/providers"
 
 	"github.com/revel/revel"
 )
 
+// Authenticate отвечает за аутентификацию
+type Authenticate struct {
+	*revel.Controller
+}
+
+// Login digest auth
+func (c *Authenticate) Login() revel.Result {
+	fmt.Print("\nAuthorization\n" + c.Request.GetHttpHeader("Authorization") + "\n\n")
+
+	if c.Request.GetHttpHeader("Authorization") == "" {
+		c.Response.Status = 401
+		digestString, err := GetDigestString("users@schedules", c.ClientIP)
+		if err != nil {
+			return c.Render(Failed(err))
+		}
+		c.Response.Out.Header().Add("WWW-Authenticate", digestString)
+
+		return c.Render()
+	}
+
+	return c.RenderJSON(Succes(c.Request.Header.Get("Authorization")))
+}
+
+/*
 // Auth controller struct
 type Auth struct {
 	*revel.Controller
@@ -75,3 +95,4 @@ func (c *Auth) Logout(login string) revel.Result {
 
 	return c.Render(login, params, sessionsStr, errStr)
 }
+*/

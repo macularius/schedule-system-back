@@ -3,7 +3,6 @@ package controllers
 import (
 	"database/sql"
 	"errors"
-	"log"
 	"myapp/app"
 	"myapp/app/models/providers"
 	"time"
@@ -19,13 +18,15 @@ type Schedule struct {
 
 // GetSchedule get schedule action
 func (c Schedule) GetSchedule() revel.Result {
+
 	eid, err := c.getEIDByParams()
 	if err != nil {
-		log.Fatal(err)
+		return c.RenderJSON(Failed(err))
 	}
+	// #TODO db брать из сессии
 	db, err := sql.Open("postgres", app.GetConnectionString()) // #TODO пользовательское подключение к базе
 	if err != nil {
-		log.Fatal(err)
+		return c.RenderJSON(Failed(err))
 	}
 	defer db.Close()
 
@@ -34,15 +35,17 @@ func (c Schedule) GetSchedule() revel.Result {
 	}
 	c.provider.Init(eid, db)
 
+	// Инициализация границ временного промежутка
 	start, end, err := c.getRangeByParams()
 	if err != nil {
-		log.Fatal(err)
+		return c.RenderJSON(Failed(err))
 	}
 
 	schedule := c.provider.GetSchedule(start, end)
-	return c.RenderJSON(schedule)
+	return c.RenderJSON(Succes(schedule))
 }
 
+// getRangeByParams возвращает левую и правую границу временного промежутка из get параметров
 func (c *Schedule) getRangeByParams() (time.Time, time.Time, error) {
 	var start time.Time
 	var end time.Time
@@ -67,6 +70,7 @@ func (c *Schedule) getRangeByParams() (time.Time, time.Time, error) {
 	return start, end, nil
 }
 
+// getEIDByParams возвращает id сотрудника из get параметров
 func (c *Schedule) getEIDByParams() (string, error) {
 	if c.Params.Values["id"] != nil && c.Params.Values["id"][0] != "" {
 		return c.Params.Values["id"][0], nil

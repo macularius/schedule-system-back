@@ -37,6 +37,8 @@ func (p *ScheduleProvider) Init(eid string, db *sql.DB) error {
 
 // GetSchedule return days of schedule initializing employee
 func (p *ScheduleProvider) GetSchedule(dateNumberStart time.Time, dateNumberEnd time.Time) []entities.Day {
+	// Если правая граница временного промежутка отсутствует, то вернуть 30 дней от текущего дня
+	// Иначе,
 	if dateNumberStart.IsZero() {
 		dateNumberStart = time.Now()
 		dateNumberEnd = time.Unix(time.Now().Unix()+Days30Seconds, 64) // 30-ый день от текущего

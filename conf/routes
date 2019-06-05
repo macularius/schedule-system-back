@@ -21,8 +21,8 @@ GET      /employee/:id/schedule                 schedule.GetSchedule
 #GET     /metadata/title                        metadata.GetTitleMeta
 
 
-GET      /authentication/:login/:password       auth.login
-GET      /authentication/:login/out             auth.logout
+GET      /authentication/signin                 authenticate.login
+#GET     /authentication/:login/out             authenticate.logout
 #POST    /authentication/login                  auth.login
 #POST    /authentication/logout                 auth.logout
 
