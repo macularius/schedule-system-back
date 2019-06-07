@@ -40,7 +40,7 @@ func GetDigestString(realm string, ip string) (string, error) {
 }
 
 func (dh *digestHeader) digestChallenges() string {
-	return fmt.Sprintf("realm='%s', domain='%s', nonce='%s', opaque='%s', stale='%s'", dh.realm, dh.domain, dh.nonce, dh.opaque, dh.stale)
+	return fmt.Sprintf("realm=%s, domain='%s', nonce=%s, opaque=%s, stale='%s'", dh.realm, dh.domain, dh.nonce, dh.opaque, dh.stale)
 }
 
 func generateNonce(ip []int16) string {
@@ -51,5 +51,5 @@ func generateNonce(ip []int16) string {
 	timeBytes := fmt.Sprintf("%x", time.Now().Unix()) // время в 16-ом виде
 	keyBytes := fmt.Sprintf("%x", "token")            // ключ в 16-ом виде
 
-	return ipBytes + ":" + timeBytes + ":" + keyBytes
+	return ipBytes + timeBytes + keyBytes
 }

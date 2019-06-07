@@ -34,11 +34,11 @@ func (c *Authenticate) Login() revel.Result {
 	username, realmVal, nonceVal, digestURIVal, responseVal := getDigestHeaders(c.Request.GetHttpHeader("Authorization"))
 	method := c.Request.Method
 	password := "ikov"
-	nonceVal = fmt.Sprintf("'%s'", nonceVal)
+	nonceVal = fmt.Sprintf("%s", nonceVal)
 
 	// fmt.Print("\n\n", "username=", username, "\nrealm=", realmVal, "\nnonce=", nonceVal, "\nuriVal=", digestURIVal, "\nuri=", c.Request.GetPath(), "\nmethod=", method, "\n\n")
 
-	ha1 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:'%s':%s", username, realmVal, password))))
+	ha1 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", username, realmVal, password))))
 	ha2 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s", method, digestURIVal))))
 
 	serverResp := fmt.Sprintf("%x", md5.Sum([]byte(strings.Join([]string{ha1, nonceVal, ha2}, ":"))))
