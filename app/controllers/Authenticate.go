@@ -1,7 +1,10 @@
 package controllers
 
 import (
+	"crypto/md5"
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/revel/revel"
 )
@@ -17,6 +20,8 @@ func (c *Authenticate) Login() revel.Result {
 
 	if c.Request.GetHttpHeader("Authorization") == "" {
 		c.Response.Status = 401
+		str, _ := GetDigestString("users@schedules", c.ClientIP)
+		fmt.Print("\nGetDigestString\n" + str + "\n\n")
 		digestString, err := GetDigestString("users@schedules", c.ClientIP)
 		if err != nil {
 			return c.Render(Failed(err))
@@ -26,73 +31,61 @@ func (c *Authenticate) Login() revel.Result {
 		return c.Render()
 	}
 
+	username, realmVal, nonceVal, digestURIVal, responseVal := getDigestHeaders(c.Request.GetHttpHeader("Authorization"))
+	method := c.Request.Method
+	password := "ikov"
+	nonceVal = fmt.Sprintf("'%s'", nonceVal)
+
+	// fmt.Print("\n\n", "username=", username, "\nrealm=", realmVal, "\nnonce=", nonceVal, "\nuriVal=", digestURIVal, "\nuri=", c.Request.GetPath(), "\nmethod=", method, "\n\n")
+
+	ha1 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:'%s':%s", username, realmVal, password))))
+	ha2 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s", method, digestURIVal))))
+
+	serverResp := fmt.Sprintf("%x", md5.Sum([]byte(strings.Join([]string{ha1, nonceVal, ha2}, ":"))))
+
+	// fmt.Print("\n\n", "ha1=", ha1, "\nha2=", ha2, "\nresp=", serverResp, "\n\n")
+
+	if serverResp == responseVal {
+
+		fmt.Print("\nAll right\n", serverResp, "\n", responseVal, "\n\n")
+	} else {
+
+		fmt.Print("\nAll bad\n", serverResp, "\n", responseVal, "\n\n")
+	}
+
 	return c.RenderJSON(Succes(c.Request.Header.Get("Authorization")))
 }
 
-/*
-// Auth controller struct
-type Auth struct {
-	*revel.Controller
-	Provider *providers.AuthProvider
+func h(data string) []byte {
+	h := md5.New()
+	io.WriteString(h, data)
+
+	return h.Sum(nil)
+}
+func kd(secret string, data string) []byte {
+	h := md5.New()
+	io.WriteString(h, fmt.Sprintf("%s:%s", secret, data))
+
+	return h.Sum(nil)
 }
 
-// Login action name
-func (c *Auth) Login(login string, password string) revel.Result {
-	var connection *sql.DB
-	var exist bool
+func getDigestHeaders(response string) (string, string, string, string, string) {
+	resp := strings.Replace(response, "Digest ", "", 1)
+	respStrs := strings.Split(resp, ", ")
 
-	_, exist, err := c.Provider.Authentication(login, password)
-	if err != nil {
-		errStr := err.Error()
-		return c.Render(errStr)
-	}
-	if !exist {
-		errStr := "Failed authentication"
-		return c.Render(login, errStr)
+	respKeysVals := make(map[string]string, 0)
+	for _, str := range respStrs {
+		keyVal := strings.Split(str, "=")
+		respKeysVals[keyVal[0]] = strings.Trim(keyVal[1], "'\"")
 	}
 
-	sessions, errStr := app.Add(login)
-	if errStr != "" {
-		return c.Render(login, errStr)
-	}
-	for _, s := range sessions {
-		if s.Login == login {
-			connection = s.Connection
-			break
-		}
-	}
-	paramst, err := json.Marshal(c.Params.Values)
-	if err != nil {
-		errStr = err.Error()
-		c.Render(login, errStr)
-	}
-	sessionsJSON, err := json.MarshalIndent(sessions, "", " ")
-	if err != nil {
-		errStr = err.Error()
-		c.Render(login, errStr)
-	}
+	fmt.Print("\n\n", respKeysVals, "\n\n")
 
-	params := fmt.Sprintf("%s\n", paramst)
-	sessionsStr := fmt.Sprintf("%s\n ", sessionsJSON)
+	username := respKeysVals["username"]
+	realm := respKeysVals["realm"]
+	nonce := respKeysVals["nonce"]
+	uri := respKeysVals["uri"]
+	responseVal := respKeysVals["response"]
 
-	return c.Render(login, connection, params, sessionsStr, errStr)
+	return username, realm, nonce, uri, responseVal
 }
-
-// Logout action name
-func (c *Auth) Logout(login string) revel.Result {
-
-	_, sessions := app.Add(login)
-	app.DeleteByLogin(login)
-	params := c.Params.Values
-	errStr := ""
-	sessionsJSON, err := json.MarshalIndent(sessions, "", " ")
-	if err != nil {
-		errStr = err.Error()
-		c.Render(login, params, errStr)
-	}
-
-	sessionsStr := fmt.Sprintf("%s\n ", sessionsJSON)
-
-	return c.Render(login, params, sessionsStr, errStr)
-}
-*/

@@ -51,5 +51,5 @@ func generateNonce(ip []int16) string {
 	timeBytes := fmt.Sprintf("%x", time.Now().Unix()) // время в 16-ом виде
 	keyBytes := fmt.Sprintf("%x", "token")            // ключ в 16-ом виде
 
-	return ipBytes + timeBytes + keyBytes
+	return ipBytes + ":" + timeBytes + ":" + keyBytes
 }
