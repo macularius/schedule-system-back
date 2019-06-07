@@ -3,6 +3,7 @@ package controllers
 import (
 	"crypto/md5"
 	"database/sql"
+	"errors"
 	"fmt"
 	"myapp/app"
 	"strings"
@@ -24,6 +25,13 @@ func (c *Authenticate) Login() revel.Result {
 		method := c.Request.Method
 		password := ""
 
+		if exResponse, exist := app.IsExistByLogin(username); exist {
+			if exResponse == responseVal {
+				return c.Redirect("/")
+			}
+			return c.RenderJSON(Failed(errors.New("Неверный токен")))
+		}
+
 		db, err := sql.Open("postgres", app.GetConnectionString())
 		if err != nil {
 			return c.RenderJSON(Failed(err))
@@ -37,11 +45,12 @@ func (c *Authenticate) Login() revel.Result {
 
 		ha1 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", username, realmVal, password))))
 		ha2 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s", method, digestURIVal))))
-
 		serverResp := fmt.Sprintf("%x", md5.Sum([]byte(strings.Join([]string{ha1, nonceVal, ha2}, ":"))))
 
 		if serverResp == responseVal {
 			fmt.Print("\nAll right\n", serverResp, "\n", responseVal, "\n\n")
+
+			app.Add(username, responseVal)
 
 			return c.RenderJSON(Succes("All right " + "server: " + serverResp + "   val: " + responseVal))
 		}
@@ -55,27 +64,6 @@ func (c *Authenticate) Login() revel.Result {
 	c.Response.Out.Header().Add("WWW-Authenticate", digestString)
 
 	return c.Render()
-}
-
-func getDigestHeaders(response string) (string, string, string, string, string) {
-	resp := strings.Replace(response, "Digest ", "", 1)
-	respStrs := strings.Split(resp, ", ")
-
-	respKeysVals := make(map[string]string, 0)
-	for _, str := range respStrs {
-		keyVal := strings.Split(str, "=")
-		respKeysVals[keyVal[0]] = strings.Trim(keyVal[1], "'\"")
-	}
-
-	fmt.Print("\n\n", respKeysVals, "\n\n")
-
-	username := respKeysVals["username"]
-	realm := respKeysVals["realm"]
-	nonce := respKeysVals["nonce"]
-	uri := respKeysVals["uri"]
-	responseVal := respKeysVals["response"]
-
-	return username, realm, nonce, uri, responseVal
 }
 
 func sqlGetUserString(username string) string {

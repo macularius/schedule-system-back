@@ -6,6 +6,8 @@ import (
 	"myapp/app/models/entities"
 	"myapp/app/models/mappers"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 // Days30Seconds 30 дней = 2592000 секунд

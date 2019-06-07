@@ -53,3 +53,22 @@ func generateNonce(ip []int16) string {
 
 	return ipBytes + timeBytes + keyBytes
 }
+
+func getDigestHeaders(response string) (username, realm, nonce, uri, responseVal string) {
+	resp := strings.Replace(response, "Digest ", "", 1)
+	respStrs := strings.Split(resp, ", ")
+
+	respKeysVals := make(map[string]string, 0)
+	for _, str := range respStrs {
+		keyVal := strings.Split(str, "=")
+		respKeysVals[keyVal[0]] = strings.Trim(keyVal[1], "'\"")
+	}
+
+	username = respKeysVals["username"]
+	realm = respKeysVals["realm"]
+	nonce = respKeysVals["nonce"]
+	uri = respKeysVals["uri"]
+	responseVal = respKeysVals["response"]
+
+	return
+}

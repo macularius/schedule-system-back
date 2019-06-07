@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"myapp/app/models/entities"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 // ScheduleMapper type of ScheduleProvider's mapper

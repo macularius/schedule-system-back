@@ -1,12 +1,13 @@
 package controllers
 
 import (
-	"database/sql"
 	"errors"
+	"fmt"
 	"myapp/app"
 	"myapp/app/models/providers"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/revel/revel"
 )
 
@@ -18,22 +19,22 @@ type Schedule struct {
 
 // GetSchedule get schedule action
 func (c Schedule) GetSchedule() revel.Result {
+	fmt.Print("\n\n", c.Request.GetHttpHeader("Authorization"), "\n\n")
 
-	eid, err := c.getEIDByParams()
+	if c.Request.GetHttpHeader("Authorization") == "" {
+		return c.Redirect("/authentication/signin")
+	}
+	_, _, _, _, token := getDigestHeaders(c.Request.GetHttpHeader("Authorization"))
+
+	session, err := app.GetSessionByToken(token)
 	if err != nil {
 		return c.RenderJSON(Failed(err))
 	}
-	// #TODO db брать из сессии
-	db, err := sql.Open("postgres", app.GetConnectionString()) // #TODO пользовательское подключение к базе
-	if err != nil {
-		return c.RenderJSON(Failed(err))
-	}
-	defer db.Close()
 
 	if c.provider == nil {
 		c.provider = new(providers.ScheduleProvider)
 	}
-	c.provider.Init(eid, db)
+	c.provider.Init(string(session.EmployeeID), session.Connection)
 
 	// Инициализация границ временного промежутка
 	start, end, err := c.getRangeByParams()

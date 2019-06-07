@@ -1,13 +1,10 @@
 package app
 
 import (
-	"crypto/md5"
 	"database/sql"
 	"fmt"
-	"io"
 	"log"
 	"myapp/app/models/entities"
-	"strconv"
 	"sync"
 	"time"
 
@@ -33,13 +30,6 @@ func (c *Cache) init() {
 	c.StartGC()
 }
 
-func createToken(userID int, time string) string {
-	str := fmt.Sprintf("%ssalt%d", time, userID)
-	h := md5.New()
-	io.WriteString(h, str)
-	return fmt.Sprintf("%x", h.Sum(nil))
-}
-
 // IsExistByToken возвращает true, если заданный token существует в кэше
 func IsExistByToken(token string) bool {
 	var exist bool
@@ -47,7 +37,7 @@ func IsExistByToken(token string) bool {
 	return exist
 }
 
-// IsExistByLogin возвращает true, если сессия для данного login'а существует в кэше
+// IsExistByLogin возвращает токен и true, если сессия для данного login'а существует в кэше
 func IsExistByLogin(login string) (string, bool) {
 	for token, session := range cache.sessions {
 		if session.Login == login {
@@ -58,7 +48,7 @@ func IsExistByLogin(login string) (string, bool) {
 }
 
 // Add добавление сессии в кэш
-func Add(login string) (map[string]entities.Session, string) {
+func Add(login string, token string) (map[string]entities.Session, string) {
 	// Срабатывает при первом запуске кэша
 	if cache.cleanupInterval == 0 || cache.defaultExpiration == 0 || cache.sessions == nil {
 		cache.init()
@@ -76,21 +66,19 @@ func Add(login string) (map[string]entities.Session, string) {
 		return nil, fmt.Sprintf("Error creating connection: %s", err.Error())
 	}
 	defer db.Close()
-	rows, err := db.Query(fmt.Sprintf("SELECT uid FROM users WHERE login = '%s'", login))
+	row := db.QueryRow(fmt.Sprintf("SELECT u.uid, e.eid FROM users as u, employees as e WHERE u.login = '%s' AND e.eid=u.eid", login))
 	if err != nil {
 		// log.Fatal("Error creating role: ", err.Error())
 		return nil, fmt.Sprintf("Error selected users with login: %s", err.Error())
 	}
-	defer rows.Close()
 
 	var uid int
-	if rows.Next() {
-		err = rows.Scan(&uid)
-	}
+	var eid int
+	err = row.Scan(&uid, &eid)
 	if err != nil {
-		// log.Fatal("Error creating role: ", err.Error())
-		return nil, fmt.Sprintf("Error scanning uid: %s", err.Error())
+		return nil, fmt.Sprintf("Error scanning uid and eid: %s", err.Error())
 	}
+
 	var created = time.Now()
 	var duration = cache.defaultExpiration
 	var expiration = time.Now().Add(duration).UnixNano()
@@ -98,29 +86,27 @@ func Add(login string) (map[string]entities.Session, string) {
 	cache.Lock()
 	defer cache.Unlock()
 
-	token := createToken(uid, strconv.FormatInt(created.Unix(), 10))
 	constr, err := GetNewConnectionString(login)
 	if err != nil {
-		return nil, fmt.Sprintf("1 %s", err.Error())
+		return nil, fmt.Sprintf("GetNewConnectionString %s", err.Error())
 	}
 
 	connection, err := sql.Open("postgres", constr)
 	if err != nil {
-		return nil, fmt.Sprintf("2 %s", err.Error())
+		return nil, fmt.Sprintf("Open %s", err.Error())
 	}
 
 	if _, exist := cache.sessions[token]; !exist {
 		cache.sessions[token] = entities.Session{
 			UserID:     uid,
+			EmployeeID: eid,
 			Connection: connection,
 			Login:      login,
 			Created:    created,
 			Expiration: expiration,
 		}
 	} else {
-		// log.Fatal("This token is exist")
-		fmt.Println(cache.sessions)
-		return nil, fmt.Sprintf("3 %s", err.Error())
+		return nil, fmt.Sprintf("not exist %s", err.Error())
 	}
 
 	// session := cache.sessions[token]
@@ -187,6 +173,16 @@ func ExtendSession(login string) {
 
 	delete(cache.sessions, token)
 	cache.sessions[token] = newSession
+
+}
+
+// GetSessionByToken возвращает сессию по токену, если она существует
+func GetSessionByToken(token string) (entities.Session, error) {
+	if IsExistByToken(token) {
+		return cache.sessions[token], nil
+	}
+
+	return *new(entities.Session), fmt.Errorf("Запрошанная сессия не существует(token: %s)", token)
 }
 
 // StartGC запуск сборки мусора в горутине
