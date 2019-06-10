@@ -19,14 +19,16 @@ type Schedule struct {
 
 // GetSchedule get schedule action
 func (c Schedule) GetSchedule() revel.Result {
-	fmt.Print("\n\n", c.Request.GetHttpHeader("Authorization"), "\n\n")
 
-	if c.Request.GetHttpHeader("Authorization") == "" {
-		return c.Redirect("/authentication/signin")
+	_, s := app.GetSessionBySID(c.Session.ID())
+	fmt.Println("\nGetSchedule\n", s)
+
+	// Проверка авторизованности
+	if !app.IsExistBySID(c.Session.ID()) {
+		return c.Redirect((*Authenticate).Login)
 	}
-	_, _, _, _, token := getDigestHeaders(c.Request.GetHttpHeader("Authorization"))
 
-	session, err := app.GetSessionByToken(token)
+	session, err := app.GetSessionBySID(c.Session.ID())
 	if err != nil {
 		return c.RenderJSON(Failed(err))
 	}

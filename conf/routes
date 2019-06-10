@@ -22,7 +22,7 @@ GET      /employee/:id/schedule                 schedule.GetSchedule
 
 
 GET      /authentication/signin                 authenticate.login
-#GET     /authentication/:login/out             authenticate.logout
+GET      /authentication/logout                 authenticate.logout
 #POST    /authentication/login                  auth.login
 #POST    /authentication/logout                 auth.logout
 

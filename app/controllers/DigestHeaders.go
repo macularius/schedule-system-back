@@ -18,14 +18,14 @@ type digestHeader struct {
 }
 
 // GetDigestString возвращает строку ответа неавторизированному пользователю
-func GetDigestString(realm string, ip string) (string, error) {
+func GetDigestString(realm string, ip string) (string, string, error) {
 	dh := new(digestHeader)
 
 	ipInts := make([]int16, 0)
 	for _, numStr := range strings.Split(ip, ".") {
 		num, err := strconv.ParseInt(numStr, 10, 16)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		ipInts = append(ipInts, int16(num))
 	}
@@ -34,13 +34,13 @@ func GetDigestString(realm string, ip string) (string, error) {
 	dh.domain = ""
 	dh.nonce = generateNonce(ipInts)
 	dh.opaque = dh.nonce
-	dh.stale = "true"
+	dh.stale = "false"
 
-	return fmt.Sprintf("Digest %s", dh.digestChallenges()), nil
+	return dh.nonce, fmt.Sprintf("Digest %s", dh.digestChallenges()), nil
 }
 
 func (dh *digestHeader) digestChallenges() string {
-	return fmt.Sprintf("realm=%s, domain='%s', nonce=%s, opaque=%s, stale='%s'", dh.realm, dh.domain, dh.nonce, dh.opaque, dh.stale)
+	return fmt.Sprintf("realm=%s, domain='%s', nonce=%s, opaque=%s, stale=%s", dh.realm, dh.domain, dh.nonce, dh.opaque, dh.stale)
 }
 
 func generateNonce(ip []int16) string {
@@ -55,20 +55,22 @@ func generateNonce(ip []int16) string {
 }
 
 func getDigestHeaders(response string) (username, realm, nonce, uri, responseVal string) {
-	resp := strings.Replace(response, "Digest ", "", 1)
-	respStrs := strings.Split(resp, ", ")
+	if response != "" {
+		resp := strings.Replace(response, "Digest ", "", 1)
+		respStrs := strings.Split(resp, ", ")
 
-	respKeysVals := make(map[string]string, 0)
-	for _, str := range respStrs {
-		keyVal := strings.Split(str, "=")
-		respKeysVals[keyVal[0]] = strings.Trim(keyVal[1], "'\"")
+		respKeysVals := make(map[string]string, 0)
+		for _, str := range respStrs {
+			keyVal := strings.Split(str, "=")
+			respKeysVals[keyVal[0]] = strings.Trim(keyVal[1], "'\"")
+		}
+
+		username = respKeysVals["username"]
+		realm = respKeysVals["realm"]
+		nonce = respKeysVals["nonce"]
+		uri = respKeysVals["uri"]
+		responseVal = respKeysVals["response"]
 	}
-
-	username = respKeysVals["username"]
-	realm = respKeysVals["realm"]
-	nonce = respKeysVals["nonce"]
-	uri = respKeysVals["uri"]
-	responseVal = respKeysVals["response"]
 
 	return
 }

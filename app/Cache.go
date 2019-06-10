@@ -3,7 +3,6 @@ package app
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"myapp/app/models/entities"
 	"sync"
 	"time"
@@ -30,25 +29,25 @@ func (c *Cache) init() {
 	c.StartGC()
 }
 
-// IsExistByToken возвращает true, если заданный token существует в кэше
-func IsExistByToken(token string) bool {
-	var exist bool
-	_, exist = cache.sessions[token]
-	return exist
-}
-
-// IsExistByLogin возвращает токен и true, если сессия для данного login'а существует в кэше
+// IsExistByLogin возвращает sid и true, если сессия для данного login'а существует в кэше
 func IsExistByLogin(login string) (string, bool) {
-	for token, session := range cache.sessions {
+	for sid, session := range cache.sessions {
 		if session.Login == login {
-			return token, true
+			return sid, true
 		}
 	}
 	return "", false
 }
 
+// IsExistBySID возвращает true, если сессия с данным sid существует в кэше
+func IsExistBySID(sid string) bool {
+	var exist bool
+	_, exist = cache.sessions[sid]
+	return exist
+}
+
 // Add добавление сессии в кэш
-func Add(login string, token string) (map[string]entities.Session, string) {
+func Add(sid string, login string, token string) (map[string]entities.Session, string) {
 	// Срабатывает при первом запуске кэша
 	if cache.cleanupInterval == 0 || cache.defaultExpiration == 0 || cache.sessions == nil {
 		cache.init()
@@ -96,8 +95,9 @@ func Add(login string, token string) (map[string]entities.Session, string) {
 		return nil, fmt.Sprintf("Open %s", err.Error())
 	}
 
-	if _, exist := cache.sessions[token]; !exist {
-		cache.sessions[token] = entities.Session{
+	if _, exist := cache.sessions[sid]; !exist {
+		cache.sessions[sid] = entities.Session{
+			Token:      token,
 			UserID:     uid,
 			EmployeeID: eid,
 			Connection: connection,
@@ -114,41 +114,26 @@ func Add(login string, token string) (map[string]entities.Session, string) {
 	return cache.sessions, ""
 }
 
-// GetConnectionByToken получение connect'а по токену, возвращает nil, если токен не существует
-func GetConnectionByToken(token string) *sql.DB {
-	if session, exist := cache.sessions[token]; exist {
+// GetConnectionBySID получение connect'а по токену, возвращает nil, если токен не существует
+func GetConnectionBySID(sid string) *sql.DB {
+	if session, exist := cache.sessions[sid]; exist {
 		return session.Connection
 	}
 	return nil
 }
 
-// DeleteByToken удаление сессии по токену
-func DeleteByToken(token string) {
+// DeleteBySID удаление сессии по токену
+func DeleteBySID(sid string) error {
 	cache.Lock()
 	defer cache.Unlock()
 
-	if _, exist := cache.sessions[token]; !exist {
-		log.Fatal()
+	if _, exist := cache.sessions[sid]; !exist {
+		return fmt.Errorf("Сессии не существует. SID: %s", sid)
 	}
 
-	delete(cache.sessions, token)
-}
-
-// DeleteByLogin удаление сессии по токену
-func DeleteByLogin(login string) {
-
-	var token string
-	for key, session := range cache.sessions {
-		if session.Login == login {
-			token = key
-			break
-		}
-	}
-
-	cache.Lock()
-	defer cache.Unlock()
-
-	delete(cache.sessions, token)
+	delete(cache.sessions, sid)
+	fmt.Println("logout: ", cache.sessions[sid])
+	return nil
 }
 
 // ExtendSession обновление сессии пользователя
@@ -176,13 +161,13 @@ func ExtendSession(login string) {
 
 }
 
-// GetSessionByToken возвращает сессию по токену, если она существует
-func GetSessionByToken(token string) (entities.Session, error) {
-	if IsExistByToken(token) {
-		return cache.sessions[token], nil
+// GetSessionBySID возвращает сессию по токену, если она существует
+func GetSessionBySID(sid string) (entities.Session, error) {
+	if IsExistBySID(sid) {
+		return cache.sessions[sid], nil
 	}
 
-	return *new(entities.Session), fmt.Errorf("Запрошанная сессия не существует(token: %s)", token)
+	return *new(entities.Session), fmt.Errorf("Запрошанная сессия не существует(sid: %s)", sid)
 }
 
 // StartGC запуск сборки мусора в горутине

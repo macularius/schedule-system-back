@@ -7,6 +7,7 @@ import (
 
 // Session структура сессии пользователя
 type Session struct {
+	Token      string
 	UserID     int
 	EmployeeID int
 	Connection *sql.DB
