@@ -30,12 +30,14 @@ func (c *Authenticate) Login() revel.Result {
 		if c.actualNonce[c.Session.ID()] == nonceVal {
 			db, err := sql.Open("postgres", app.GetConnectionString())
 			if err != nil {
+				delete(c.actualNonce, c.Session.ID())
 				return c.RenderJSON(Failed(err))
 			}
 			defer db.Close()
 
 			row := db.QueryRow(sqlGetUserString(username))
 			if err = row.Scan(&password); err != nil {
+				delete(c.actualNonce, c.Session.ID())
 				return c.RenderJSON(Failed(err))
 			}
 
@@ -44,11 +46,8 @@ func (c *Authenticate) Login() revel.Result {
 			serverResp := fmt.Sprintf("%x", md5.Sum([]byte(strings.Join([]string{ha1, nonceVal, ha2}, ":"))))
 
 			if serverResp == responseVal {
-				fmt.Print("\nAll right\n", serverResp, "\n", responseVal, "\n\n")
+				app.Add(c.Session.ID(), username, password, responseVal)
 
-				app.Add(c.Session.ID(), username, responseVal)
-
-				fmt.Println("SID ", c.Session.ID())
 				return c.Redirect((*GUI).Index)
 			}
 

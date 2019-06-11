@@ -27,20 +27,27 @@ func (p *ScheduleProvider) Init(eid string, db *sql.DB) error {
 	p.mapper = new(mappers.ScheduleMapper)
 
 	templatesRow := db.QueryRow(selectTemplatesQueryString(eid))
-	daysRows, err := db.Query(selectDaysQueryString(eid))
+	// fmt.Print("\ndays\n", selectDaysQueryString(eid), "\n")
+	dayRows, err := db.Query(selectDaysQueryString(eid))
+	if err != nil {
+		return fmt.Errorf("dayRows error %s", err.Error())
+	}
+	defer dayRows.Close()
+	err = p.mapper.Init(dayRows, templatesRow)
 	if err != nil {
 		return err
 	}
-	defer daysRows.Close()
-	p.mapper.Init(daysRows, templatesRow)
 
 	return nil
 }
 
 // GetSchedule return days of schedule initializing employee
 func (p *ScheduleProvider) GetSchedule(dateNumberStart time.Time, dateNumberEnd time.Time) []entities.Day {
-	// Если правая граница временного промежутка отсутствует, то вернуть 30 дней от текущего дня
-	// Иначе,
+
+	fmt.Printf("\nData after\n%s\n%s\n", dateNumberEnd.String(), dateNumberStart.String())
+
+	// Если левая граница временного промежутка отсутствует, то вернуть 30 дней от текущего дня
+	// Иначе, если правая отсутствует то вернуть расписание одного дня
 	if dateNumberStart.IsZero() {
 		dateNumberStart = time.Now()
 		dateNumberEnd = time.Unix(time.Now().Unix()+Days30Seconds, 64) // 30-ый день от текущего
@@ -50,6 +57,7 @@ func (p *ScheduleProvider) GetSchedule(dateNumberStart time.Time, dateNumberEnd 
 		}
 	}
 
+	fmt.Printf("\nData before\n%s\n%s\n", dateNumberEnd.String(), dateNumberStart.String())
 	return p.mapper.GetSchedule(dateNumberStart, dateNumberEnd)
 }
 
@@ -57,8 +65,8 @@ func selectTemplatesQueryString(eid string) string {
 	return fmt.Sprintf("SELECT mon, tue, wed, thu, fri, sat, sun FROM templates WHERE eid='%s';", eid)
 }
 func selectDaysQueryString(eid string) string {
-	return fmt.Sprintf("SELECT date, range FROM schedules WHERE eid='%s'", eid) // #TODO отрезать дни, которые прошли
+	return fmt.Sprintf("SELECT date, range FROM schedules WHERE eid='%s';", eid) // #TODO отрезать дни, которые прошли
 }
 func selectDaysQueryStringByRange(eid string, start time.Time, end time.Time) string {
-	return fmt.Sprintf("SELECT date, range FROM schedules WHERE eid='%s' AND date >= '%s' AND date <= '%s'", eid, start, end)
+	return fmt.Sprintf("SELECT date, range FROM schedules WHERE eid='%s' AND date >= '%s' AND date <= '%s';", eid, start, end)
 }

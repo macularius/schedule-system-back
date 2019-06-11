@@ -19,10 +19,6 @@ type Schedule struct {
 
 // GetSchedule get schedule action
 func (c Schedule) GetSchedule() revel.Result {
-
-	_, s := app.GetSessionBySID(c.Session.ID())
-	fmt.Println("\nGetSchedule\n", s)
-
 	// Проверка авторизованности
 	if !app.IsExistBySID(c.Session.ID()) {
 		return c.Redirect((*Authenticate).Login)
@@ -36,7 +32,10 @@ func (c Schedule) GetSchedule() revel.Result {
 	if c.provider == nil {
 		c.provider = new(providers.ScheduleProvider)
 	}
-	c.provider.Init(string(session.EmployeeID), session.Connection)
+	err = c.provider.Init(fmt.Sprint(session.EmployeeID), session.Connection)
+	if err != nil {
+		return c.RenderJSON(Failed(err))
+	}
 
 	// Инициализация границ временного промежутка
 	start, end, err := c.getRangeByParams()
@@ -44,6 +43,7 @@ func (c Schedule) GetSchedule() revel.Result {
 		return c.RenderJSON(Failed(err))
 	}
 
+	fmt.Printf("\nDate in controller\nstart %s\nend %s\n", start.String(), end.String())
 	schedule := c.provider.GetSchedule(start, end)
 	return c.RenderJSON(Succes(schedule))
 }
@@ -52,9 +52,10 @@ func (c Schedule) GetSchedule() revel.Result {
 func (c *Schedule) getRangeByParams() (time.Time, time.Time, error) {
 	var start time.Time
 	var end time.Time
+	var err error
 
 	if c.Params.Values["start"] != nil && c.Params.Values["start"][0] != "" {
-		start, err := time.Parse("02.01.2006", c.Params.Values["start"][0])
+		start, err = time.Parse("02.01.2006", c.Params.Values["start"][0])
 		if err != nil {
 			return start, end, err
 		}

@@ -2,6 +2,7 @@ package mappers
 
 import (
 	"database/sql"
+	"fmt"
 	"myapp/app/models/entities"
 	"time"
 
@@ -24,11 +25,11 @@ const (
 func (m *ScheduleMapper) Init(dayRows *sql.Rows, templateRow *sql.Row) error {
 	err := m.daysInit(dayRows)
 	if err != nil {
-		return err
+		return fmt.Errorf("days error %s", err.Error())
 	}
 	err = m.templatesInit(templateRow)
 	if err != nil {
-		return err
+		return fmt.Errorf("template error %s", err.Error())
 	}
 
 	return nil
@@ -54,6 +55,7 @@ func (m *ScheduleMapper) GetSchedule(dateStart time.Time, dateEnd time.Time) []e
 		}
 	}
 
+	// fmt.Print("\nSchedule\n", schedule, "\n")
 	return schedule
 }
 
