@@ -32,7 +32,16 @@ func (c Schedule) GetSchedule() revel.Result {
 	if c.provider == nil {
 		c.provider = new(providers.ScheduleProvider)
 	}
-	err = c.provider.Init(fmt.Sprint(session.EmployeeID), session.Connection)
+
+	eid, err := c.getEIDByParams()
+	if err != nil {
+		return c.RenderJSON(Failed(err))
+	}
+
+	if eid == "" {
+		eid = fmt.Sprint(session.EmployeeID)
+	}
+	err = c.provider.Init(eid, session.Connection)
 	if err != nil {
 		return c.RenderJSON(Failed(err))
 	}
@@ -43,7 +52,6 @@ func (c Schedule) GetSchedule() revel.Result {
 		return c.RenderJSON(Failed(err))
 	}
 
-	fmt.Printf("\nDate in controller\nstart %s\nend %s\n", start.String(), end.String())
 	schedule := c.provider.GetSchedule(start, end)
 	return c.RenderJSON(Succes(schedule))
 }

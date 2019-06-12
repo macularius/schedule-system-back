@@ -2,7 +2,7 @@ package entities
 
 // Employee this struct emulated employee's structure
 type Employee struct {
-	EID         int
+	EID         int64
 	Lastname    string
 	Firstname   string
 	Middlename  string

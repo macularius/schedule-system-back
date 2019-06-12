@@ -1,7 +1,5 @@
 package controllers
 
-import "fmt"
-
 // ServerResponse структура ответа сервера на GET запрос
 type ServerResponse struct {
 	Status       string
@@ -22,8 +20,6 @@ func Succes(data interface{}) *ServerResponse {
 // Failed получение структуры ответа, при успешном запросе
 func Failed(err error) *ServerResponse {
 	response := new(ServerResponse)
-
-	fmt.Printf("\n\n%s\n\n", err.Error())
 
 	response.Status = "Failed"
 	response.ErrorMessage = err.Error()

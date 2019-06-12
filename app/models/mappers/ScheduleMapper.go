@@ -49,20 +49,38 @@ func (m *ScheduleMapper) GetSchedule(dateStart time.Time, dateEnd time.Time) []e
 			curWeekday := day.Weekday().String()
 			newday.Date = day.Format("01.02.2006")
 			newday.Timerange = m.Template[curWeekday]
-			// fmt.Print("\n***\ndatestart: " + newday.Date + " " + newday.Timerange + "\n***\n")
 
 			schedule = append(schedule, newday)
 		}
 	}
 
-	// fmt.Print("\nSchedule\n", schedule, "\n")
+	fmt.Print("\n", schedule, "\n")
+
 	return schedule
+}
+
+// GetEmployee возвращает данные сотрудника
+func (m *ScheduleMapper) GetEmployee(employeeRow *sql.Row) entities.GroupEmployee {
+	var eid int64
+	var lastname string
+	var firstname string
+	var middlename string
+
+	employeeRow.Scan(&eid, &lastname, &firstname, &middlename)
+
+	employee := entities.GroupEmployee{
+		EID:        eid,
+		Lastname:   lastname,
+		Firstname:  firstname,
+		Middlename: middlename,
+	}
+
+	return employee
 }
 
 // #TODO вынос в структуру
 func (m *ScheduleMapper) daysInit(rows *sql.Rows) error {
 	m.Days = make(map[string]string)
-	// fmt.Println("\n*** Days start")
 	for rows.Next() {
 		var date time.Time
 		var timerange string
@@ -71,9 +89,7 @@ func (m *ScheduleMapper) daysInit(rows *sql.Rows) error {
 			return err
 		}
 		m.Days[date.Format("01.02.2006")] = timerange
-		// fmt.Println(date.Format("01.02.2006") + " - " + m.Days[date.Format("01.02.2006")])
 	}
-	// fmt.Println("\n*** Days end")
 
 	return nil
 }
@@ -82,18 +98,14 @@ func (m *ScheduleMapper) daysInit(rows *sql.Rows) error {
 func (m *ScheduleMapper) templatesInit(row *sql.Row) error {
 	m.Template = make(map[string]string)
 	weekdays := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
-	// fmt.Println("\n*** Templates start")
 	var ranges [7]string
 	err := row.Scan(&ranges[0], &ranges[1], &ranges[2], &ranges[3], &ranges[4], &ranges[5], &ranges[6])
 	if err != nil {
-		// fmt.Println("ERROR: \n" + err.Error() + "\n")
 		return err
 	}
 	for i, day := range weekdays {
 		m.Template[day] = ranges[i]
-		// fmt.Println(m.Template[day])
 	}
-	// fmt.Println("\n*** Templates end")
 
 	return nil
 }

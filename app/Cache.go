@@ -75,8 +75,8 @@ func Add(sid string, login string, password string, token string) error {
 		return fmt.Errorf("Error selected users with login: %s", err.Error())
 	}
 
-	var uid int
-	var eid int
+	var uid int64
+	var eid int64
 	err = row.Scan(&uid, &eid)
 	if err != nil {
 		return fmt.Errorf("Error scanning uid and eid: %s", err.Error())

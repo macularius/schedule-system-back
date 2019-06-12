@@ -44,8 +44,6 @@ func (p *ScheduleProvider) Init(eid string, db *sql.DB) error {
 // GetSchedule return days of schedule initializing employee
 func (p *ScheduleProvider) GetSchedule(dateNumberStart time.Time, dateNumberEnd time.Time) []entities.Day {
 
-	fmt.Printf("\nData after\n%s\n%s\n", dateNumberEnd.String(), dateNumberStart.String())
-
 	// Если левая граница временного промежутка отсутствует, то вернуть 30 дней от текущего дня
 	// Иначе, если правая отсутствует то вернуть расписание одного дня
 	if dateNumberStart.IsZero() {
@@ -57,8 +55,14 @@ func (p *ScheduleProvider) GetSchedule(dateNumberStart time.Time, dateNumberEnd 
 		}
 	}
 
-	fmt.Printf("\nData before\n%s\n%s\n", dateNumberEnd.String(), dateNumberStart.String())
 	return p.mapper.GetSchedule(dateNumberStart, dateNumberEnd)
+}
+
+// GetEmployee возвращает данные пользователя
+func (p *ScheduleProvider) GetEmployee(eid string) entities.GroupEmployee {
+	empRow := p.DB.QueryRow(getEmployeeConnectionString(eid))
+
+	return p.mapper.GetEmployee(empRow)
 }
 
 func selectTemplatesQueryString(eid string) string {
@@ -69,4 +73,7 @@ func selectDaysQueryString(eid string) string {
 }
 func selectDaysQueryStringByRange(eid string, start time.Time, end time.Time) string {
 	return fmt.Sprintf("SELECT date, range FROM schedules WHERE eid='%s' AND date >= '%s' AND date <= '%s';", eid, start, end)
+}
+func getEmployeeConnectionString(eid string) string {
+	return fmt.Sprintf("select e.eid, e.lastname, e.firstname, e.middlename from employees as e where e.eid = %s;", eid)
 }
