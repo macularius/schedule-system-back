@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"myapp/app/models/entities"
 	"myapp/app/models/mappers"
+	"strconv"
 )
 
 // MetadataProvider metadata provider struct
@@ -29,6 +30,20 @@ func (p *MetadataProvider) GetMenuMeta(eid string, db *sql.DB) ([]*entities.Grou
 	}
 
 	groups, err := p.mapper.GetMenuMeta(empRows, groupRows)
+
+	eidInt, err := strconv.ParseInt(eid, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Print("\nGroups\n")
+	fmt.Print(groups)
+	groups[0].Employees = append(groups[0].Employees, entities.GroupEmployee{
+		EID:        eidInt,
+		Lastname:   "",
+		Firstname:  "",
+		Middlename: "",
+	})
+
 	return groups, nil
 }
 

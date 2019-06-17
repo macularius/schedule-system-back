@@ -24,6 +24,7 @@ type ScheduleProvider struct {
 
 // Init initialize mapper by user's id
 func (p *ScheduleProvider) Init(eid string, db *sql.DB) error {
+	p.DB = db
 	p.mapper = new(mappers.ScheduleMapper)
 
 	templatesRow := db.QueryRow(selectTemplatesQueryString(eid))
@@ -42,7 +43,7 @@ func (p *ScheduleProvider) Init(eid string, db *sql.DB) error {
 }
 
 // GetSchedule return days of schedule initializing employee
-func (p *ScheduleProvider) GetSchedule(dateNumberStart time.Time, dateNumberEnd time.Time) []entities.Day {
+func (p *ScheduleProvider) GetSchedule(dateNumberStart time.Time, dateNumberEnd time.Time) []*entities.Day {
 
 	// Если левая граница временного промежутка отсутствует, то вернуть 30 дней от текущего дня
 	// Иначе, если правая отсутствует то вернуть расписание одного дня

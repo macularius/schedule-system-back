@@ -15,6 +15,13 @@ func (m *MetadataMapper) GetMenuMeta(empRows *sql.Rows, groupRows *sql.Rows) ([]
 	groupsMap := make(map[string]*entities.Group, 0)
 	groups := make([]*entities.Group, 0)
 
+	userEmployeeGroup := &entities.Group{
+		GID:       -1,
+		Employees: make([]entities.GroupEmployee, 0),
+		Name:      "Мое расписание",
+	}
+	groups = append(groups, userEmployeeGroup)
+
 	for groupRows.Next() {
 		var gid int64
 		var name string

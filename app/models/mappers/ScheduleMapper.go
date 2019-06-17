@@ -36,21 +36,21 @@ func (m *ScheduleMapper) Init(dayRows *sql.Rows, templateRow *sql.Row) error {
 }
 
 // GetSchedule возвращает расписание на основе дней и шаблонов
-func (m *ScheduleMapper) GetSchedule(dateStart time.Time, dateEnd time.Time) []entities.Day {
-	schedule := make([]entities.Day, 0)
+func (m *ScheduleMapper) GetSchedule(dateStart time.Time, dateEnd time.Time) []*entities.Day {
+	schedule := make([]*entities.Day, 0)
 
 	for day := dateStart; day.Unix() <= dateEnd.Unix(); day = time.Unix(day.Unix()+DaySeconds, 64) {
 		var newday entities.Day
 		if curDay, exist := m.Days[day.Format("01.02.2006")]; exist {
 			newday.Date = day.Format("01.02.2006")
 			newday.Timerange = curDay
-			schedule = append(schedule, newday)
+			schedule = append(schedule, &newday)
 		} else {
 			curWeekday := day.Weekday().String()
 			newday.Date = day.Format("01.02.2006")
 			newday.Timerange = m.Template[curWeekday]
 
-			schedule = append(schedule, newday)
+			schedule = append(schedule, &newday)
 		}
 	}
 

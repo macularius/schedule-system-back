@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"myapp/app"
+	"myapp/app/models/entities"
 	"myapp/app/models/providers"
 	"time"
 
@@ -35,12 +36,9 @@ func (c Schedule) GetSchedule() revel.Result {
 
 	eid, err := c.getEIDByParams()
 	if err != nil {
-		return c.RenderJSON(Failed(err))
-	}
-
-	if eid == "" {
 		eid = fmt.Sprint(session.EmployeeID)
 	}
+
 	err = c.provider.Init(eid, session.Connection)
 	if err != nil {
 		return c.RenderJSON(Failed(err))
@@ -52,8 +50,11 @@ func (c Schedule) GetSchedule() revel.Result {
 		return c.RenderJSON(Failed(err))
 	}
 
-	schedule := c.provider.GetSchedule(start, end)
-	return c.RenderJSON(Succes(schedule))
+	timetable := new(entities.EmployeeTimetable)
+	timetable.Employee = c.provider.GetEmployee(eid)
+	timetable.Days = c.provider.GetSchedule(start, end)
+
+	return c.RenderJSON(Succes(timetable))
 }
 
 // getRangeByParams возвращает левую и правую границу временного промежутка из get параметров
