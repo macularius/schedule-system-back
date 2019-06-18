@@ -8,7 +8,6 @@ module:testrunner
 
 GET      /                                      GUI.Index
 
-#GET      /employee                              schedule.GetEmployee
 GET      /employee/schedule                     schedule.GetSchedule
 GET      /employee/:id/schedule                 schedule.GetSchedule
 #POST    /employee/:id/schedule                 schedule.EditSchedule
@@ -20,7 +19,7 @@ GET      /employee/:id/schedule                 schedule.GetSchedule
 #POST    /employee/:id/days                     schedule.EditDay
 
 GET      /metadata/menu                         metadata.GetMenuMeta
-#GET     /metadata/title                        metadata.GetTitleMeta
+GET      /metadata/title                        metadata.GetTitleMeta
 
 
 GET      /authentication/signin                 authenticate.login

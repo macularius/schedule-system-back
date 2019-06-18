@@ -35,3 +35,25 @@ func (c *Metadata) GetMenuMeta() revel.Result {
 
 	return c.RenderJSON(Succes(groups))
 }
+
+// GetTitleMeta action name
+func (c *Metadata) GetTitleMeta() revel.Result {
+	// Проверка авторизованности
+	if !app.IsExistBySID(c.Session.ID()) {
+		return c.Redirect((*Authenticate).Login)
+	}
+	if c.provider == nil {
+		c.provider = new(providers.MetadataProvider)
+		c.provider.Init()
+	}
+	session, err := app.GetSessionBySID(c.Session.ID())
+	if err != nil {
+		return c.RenderJSON(Failed(err))
+	}
+	employees, err := c.provider.GetTitleMeta(strconv.FormatInt(session.EmployeeID, 10), session.Connection)
+	if err != nil {
+		return c.RenderJSON(Failed(err))
+	}
+
+	return c.RenderJSON(Succes(employees))
+}

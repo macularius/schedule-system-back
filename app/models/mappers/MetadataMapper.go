@@ -2,6 +2,7 @@ package mappers
 
 import (
 	"database/sql"
+	"fmt"
 	"myapp/app/models/entities"
 	"strconv"
 )
@@ -60,4 +61,26 @@ func (m *MetadataMapper) GetMenuMeta(empRows *sql.Rows, groupRows *sql.Rows) ([]
 	}
 
 	return groups, nil
+}
+
+// GetTitleMeta возвращает карту сотрудников вида, [eid]ФИО
+func (m *MetadataMapper) GetTitleMeta(relatedEmployeesRows *sql.Rows) (map[string]string, error) {
+	employees := make(map[string]string)
+
+	fmt.Println("Related employees:")
+
+	for relatedEmployeesRows.Next() {
+		eid := ""
+		lastname := ""
+		firstname := ""
+		middlename := ""
+
+		relatedEmployeesRows.Scan(&eid, &lastname, &firstname, &middlename)
+
+		fmt.Printf("[%s]: %s %s %s", eid, lastname, firstname, middlename)
+
+		employees[eid] = fmt.Sprintf("%s %s %s", lastname, firstname, middlename)
+	}
+
+	return employees, nil
 }

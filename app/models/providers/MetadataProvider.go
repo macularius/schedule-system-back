@@ -20,11 +20,11 @@ func (p *MetadataProvider) Init() {
 
 // GetMenuMeta возвращает массив групп для меню
 func (p *MetadataProvider) GetMenuMeta(eid string, db *sql.DB) ([]*entities.Group, error) {
-	empRows, err := db.Query(getGroupEmployeesConnectionString(eid))
+	empRows, err := db.Query(selectGroupEmployeesConnectionString(eid))
 	if err != nil {
 		return nil, err
 	}
-	groupRows, err := db.Query(getGroupsConnectionString(eid))
+	groupRows, err := db.Query(selectGroupsConnectionString(eid))
 	if err != nil {
 		return nil, err
 	}
@@ -47,9 +47,27 @@ func (p *MetadataProvider) GetMenuMeta(eid string, db *sql.DB) ([]*entities.Grou
 	return groups, nil
 }
 
-func getGroupEmployeesConnectionString(eid string) string {
+// GetTitleMeta возвращает карту [eid] = фио,
+func (p *MetadataProvider) GetTitleMeta(eid string, db *sql.DB) (map[string]string, error) {
+	userRelatedEmployeesRows, err := db.Query(selectRelatedEmployees(eid))
+	if err != nil {
+		return nil, err
+	}
+
+	relatedEmployees, err := p.mapper.GetTitleMeta(userRelatedEmployeesRows)
+	if err != nil {
+		return nil, err
+	}
+
+	return relatedEmployees, nil
+}
+
+func selectGroupEmployeesConnectionString(eid string) string {
 	return fmt.Sprintf("select g.gid, e.eid, e.lastname, e.firstname, e.middlename from employees as e, groups as g, grouplist as gl where gl.gid = g.gid and gl.eid = e.eid and g.leadid = %s;", eid)
 }
-func getGroupsConnectionString(eid string) string {
+func selectGroupsConnectionString(eid string) string {
 	return fmt.Sprintf("select gid, name from groups where leadid = %s;", eid)
+}
+func selectRelatedEmployees(eid string) string {
+	return fmt.Sprintf("select e.eid, e.lastname, e.firstname, e.middlename from employees as e, groups as g, grouplist as gl where gl.gid = g.gid and gl.eid = e.eid and g.leadid = %s union select e.eid, e.lastname, e.firstname, e.middlename from employees as e where e.eid = %s;", eid, eid)
 }
